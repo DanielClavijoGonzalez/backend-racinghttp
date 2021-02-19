@@ -1,4 +1,4 @@
-from controllers import LoginUserControllers, RegisterUserControllers
+from controllers import LoginUserControllers, RegisterUserControllers, SearchProductsControllers, AddProductControllers
 
 
 user = {
@@ -6,3 +6,8 @@ user = {
     "register_user": "/api/v01/user/register", "register_user_controllers": RegisterUserControllers.as_view("register_api")
 }
 
+admin = {
+    "search_product_admin": "/api/v01/search/product", "search_products_controllers": SearchProductsControllers.as_view("search_products_api"),
+    "add_products_admin": "/api/v01/add/product",
+     "add_product_controllers": AddProductControllers.as_view("add_products_api")
+}
