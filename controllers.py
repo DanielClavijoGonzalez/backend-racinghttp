@@ -1,12 +1,10 @@
 from flask.views import MethodView
 from flask import jsonify, request
 import time
-import bcrypt
-import jwt
 from config import KEY_TOKEN_AUTH
 import datetime
-
-
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt
+import mysql.connector
 
 class LoginUserControllers(MethodView):
     """
@@ -20,28 +18,31 @@ class LoginUserControllers(MethodView):
         content = request.get_json()
         correo = content.get("correo")
         password = content.get("password")
-
-        encoded_jwt = jwt.encode({'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=300), 'email': correo}, KEY_TOKEN_AUTH , algorithm='HS256')
+        jwt = encoded_jwt(correv)
 
         if(correo == correv and password == passwordv):
-            return jsonify({"logueado": True, "token": encoded_jwt}), 200
+            return jsonify({"logueado": True, "token": jwt}), 200
         else:
             return jsonify({"logueado": False}), 200
 
 class RegisterUserControllers(MethodView):
     def post(self):
-        #simulacion de espera en el back con 1.5 segundos
-        time.sleep(3)
-        content = request.get_json()
-        nombres = content.get("nombres")
-        documento = content.get("documento")
-        correo = content.get("correo")
-        password = content.get("password")
-        salt = bcrypt.gensalt()
+        #time.sleep(3)
+            content = request.get_json()
+            name = fixStringClient(content.get("name"))
+            lastname = fixStringClient(content.get("lastname"))
+            email = fixStringClient(content.get("email"))
+            position = fixStringClient(content.get("position"))
+            password = fixStringClient(content.get("password"))
+            hash_password = cryptStringBcrypt(password)
 
-        hash_password = bcrypt.hashpw(bytes(str(password), encoding= 'utf-8'), salt)
-        
-        return jsonify({"usuarioRegistrado": True, "nombre": nombres,"documento":documento,"correo":correo,"password":password}), 200
+            #decrypted = decryptStringBcrypt(password, hash_password)
+
+            data = dataTableMysql("INSERT INTO usuarios(nombres, apellidos, correo, cargo, clave) VALUES('{}', '{}', '{}', '{}', '{}')".format(name, lastname, email, position, hash_password), "rowcount")
+            
+            return jsonify({"registered": data}), 200
+            
+
 
 class SearchProductsControllers(MethodView):
     def post(self):
@@ -66,3 +67,46 @@ class AddProductControllers(MethodView):
         precio = content.get("precio")
         cantidad = content.get("cantidad")
         return jsonify({"guardado": True}), 200
+
+class SearchUsersChat(MethodView):
+    def post(self):
+        if (request.headers.get('Authorization')):
+            token = request.headers.get('Authorization').split(" ")
+            
+            checkToken = checkJwt(token)
+            if not checkToken:
+                return jsonify({
+                "auth_token": False
+            }), 200
+
+            json_req = request.get_json(force=True)
+            key_search =fixStringClient(json_req["search_key"])
+            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo FROM usuarios WHERE nombres LIKE '%{}%' OR apellidos LIKE '%{}%'".format(key_search, key_search))
+            json_res = []
+            for data in myresult:
+                json_res.append({
+                    "nombres": data[0],
+                    "apellidos": data[1],
+                    "correo": data[2],
+                    "cargo": data[3],
+                    "found": True,
+                    "auth_token": checkToken,
+                    "key_search": key_search
+                })
+            if len(json_res) == 0:
+                json_res.append({
+                    "id": -1,
+                    "nombres": "Not found data",
+                    "apellidos": "Not found data",
+                    "correo": "Not found data",
+                    "cargo": "Not found data",
+                    "clave": "Not found data",
+                    "found": False,
+                    "key_search": key_search,
+                    "auth_token": checkToken
+                })
+            return jsonify(json_res), 200
+        else:
+            return jsonify({
+                "auth_token": False
+            }), 200
