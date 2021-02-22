@@ -43,7 +43,7 @@ def dataTableMysql(query, rtn="datatable"):
     
 
 def encoded_jwt(email):
-    return jwt.encode({'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30), 'email': email}, KEY_TOKEN_AUTH , algorithm='HS256')
+    return jwt.encode({'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=120), 'email': email}, KEY_TOKEN_AUTH , algorithm='HS256')
 
 def cryptStringBcrypt(string, rtn="string", slt=10):
     salt = bcrypt.gensalt(slt)

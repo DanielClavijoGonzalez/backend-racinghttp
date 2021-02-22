@@ -13,3 +13,4 @@ app.add_url_rule(user["register_user"], view_func=user["register_user_controller
 app.add_url_rule(admin["search_product_admin"], view_func=admin["search_products_controllers"])
 app.add_url_rule(admin["add_products_admin"], view_func=admin["add_product_controllers"])
 app.add_url_rule(admin["search_users_admin"], view_func=admin["search_users_controllers"])
+app.add_url_rule(user["check_jwt"], view_func=user["check_jwt_controllers"])

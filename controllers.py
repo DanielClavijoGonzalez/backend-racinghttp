@@ -3,7 +3,7 @@ from flask import jsonify, request
 import time
 from config import KEY_TOKEN_AUTH
 import datetime
-from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt
 import mysql.connector
 
 class LoginUserControllers(MethodView):
@@ -12,15 +12,13 @@ class LoginUserControllers(MethodView):
     """
     def post(self):
         #SIMULACION DE LOGIN
-        correv="grupojed@gmail.com"
-        passwordv="JED"
         time.sleep(3)
         content = request.get_json()
-        correo = content.get("correo")
-        password = content.get("password")
-        jwt = encoded_jwt(correv)
+        correo = fixStringClient(content.get("email"))
+        password = fixStringClient(content.get("password"))
+        jwt = encoded_jwt(correo)
 
-        if(correo == correv and password == passwordv):
+        if(correo == "grupojed@gmail.com" and password == "JED"):
             return jsonify({"logueado": True, "token": jwt}), 200
         else:
             return jsonify({"logueado": False}), 200
@@ -41,8 +39,6 @@ class RegisterUserControllers(MethodView):
             data = dataTableMysql("INSERT INTO usuarios(nombres, apellidos, correo, cargo, clave) VALUES('{}', '{}', '{}', '{}', '{}')".format(name, lastname, email, position, hash_password), "rowcount")
             
             return jsonify({"registered": data}), 200
-            
-
 
 class SearchProductsControllers(MethodView):
     def post(self):
@@ -68,21 +64,38 @@ class AddProductControllers(MethodView):
         cantidad = content.get("cantidad")
         return jsonify({"guardado": True}), 200
 
-class SearchUsersChat(MethodView):
+class SearchUsersChatControllers(MethodView):
     def post(self):
         if (request.headers.get('Authorization')):
             token = request.headers.get('Authorization').split(" ")
             
             checkToken = checkJwt(token)
             if not checkToken:
+                print("TOKEN NO VALIDO")
+                print(token)
                 return jsonify({
                 "auth_token": False
             }), 200
 
-            json_req = request.get_json(force=True)
-            key_search =fixStringClient(json_req["search_key"])
-            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo FROM usuarios WHERE nombres LIKE '%{}%' OR apellidos LIKE '%{}%'".format(key_search, key_search))
             json_res = []
+            json_req = request.get_json(force=True)
+            key_search = fixStringClient(json_req["search_key"])
+            if len(key_search) == 0:
+                json_res.append({
+                    "id": -1,
+                    "nombres": "Not found data",
+                    "apellidos": "Not found data",
+                    "correo": "Not found data",
+                    "cargo": "Not found data",
+                    "clave": "Not found data",
+                    "found": False,
+                    "key_search": key_search,
+                    "auth_token": checkToken
+                })
+                return jsonify(json_res), 200
+
+            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo FROM usuarios WHERE nombres LIKE '%{}%' OR apellidos LIKE '%{}%'".format(key_search, key_search))
+            
             for data in myresult:
                 json_res.append({
                     "nombres": data[0],
@@ -106,6 +119,26 @@ class SearchUsersChat(MethodView):
                     "auth_token": checkToken
                 })
             return jsonify(json_res), 200
+        else:
+            print("TOKEN NO RECIBIDO")
+            return jsonify({
+                "auth_token": False
+            }), 200
+
+class ValidateJwtControllers(MethodView):
+    def post(self):
+        if (request.headers.get('Authorization')):
+            token = request.headers.get('Authorization').split(" ")
+            
+            checkToken = checkJwt(token)
+            if checkToken:
+                return jsonify({
+                "auth_token": checkToken
+            }), 200
+            else:
+                return jsonify({
+                "auth_token": checkToken
+            }), 200
         else:
             return jsonify({
                 "auth_token": False
