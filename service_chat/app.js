@@ -22,10 +22,7 @@ const jwtSecret = "BASE64";
 app.post("/login", function (req, res) {
   // TODO: validate the actual user user
   let profile = {
-    first_name: "John",
-    last_name: "Doe",
-    email: "john@doe.com",
-    id: 123,
+    user_id: 123,
   };
 
   // we are sending the profile in the token

@@ -1,5 +1,5 @@
 from controllers import LoginUserControllers, RegisterUserControllers, SearchProductsControllers, AddProductControllers, SearchUsersChatControllers
-from controllers import ValidateJwtControllers
+from controllers import ValidateJwtControllers, AssignKeyChatInit
 
 
 user = {
@@ -14,5 +14,7 @@ admin = {
     "add_products_admin": "/api/v01/add/product",
      "add_product_controllers": AddProductControllers.as_view("add_products_api"),
      "search_users_admin": "/api/v01/search/users",
-     "search_users_controllers": SearchUsersChatControllers.as_view("search_users_api")
+     "search_users_controllers": SearchUsersChatControllers.as_view("search_users_api"),
+     "asign_init_chat": "/api/v01/init/chat",
+     "asign_init_chat_controllers": AssignKeyChatInit.as_view("asign_init_chat_api")
 }

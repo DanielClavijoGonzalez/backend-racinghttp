@@ -1,31 +1,34 @@
 from flask.views import MethodView
 from flask import jsonify, request
+import bcrypt
 import time
-from config import KEY_TOKEN_AUTH
 import datetime
-from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom
 import mysql.connector
 
 class LoginUserControllers(MethodView):
     """
-        Example Login
+        Login
     """
     def post(self):
-        #SIMULACION DE LOGIN
-        time.sleep(3)
-        content = request.get_json()
-        correo = fixStringClient(content.get("email"))
+        content = request.get_json(force=True)
+        email = fixStringClient(content.get("email"))
         password = fixStringClient(content.get("password"))
-        jwt = encoded_jwt(correo)
+        dataDB = dataTableMysql("SELECT nombres, apellidos, correo, cargo, clave, id_provisional, llave_privada FROM usuarios WHERE correo = '{}'".format(email))
+        
 
-        if(correo == "grupojed@gmail.com" and password == "JED"):
-            return jsonify({"logueado": True, "token": jwt}), 200
+        if len(dataDB) >= 1:
+            for data in dataDB:
+                if bcrypt.checkpw(bytes(str(password), encoding= 'utf-8'), bytes(str(data[4]), encoding= 'utf-8')):
+                    jwt = encoded_jwt(data[5])
+                    return jsonify({"logueado": True, "token": jwt, "name": data[0], "lastname": data[1], "email": data[2], "position": data[3], "private_key": data[6]}), 200
+                else:
+                    return jsonify({"logueado": False, "token": False}), 200
         else:
-            return jsonify({"logueado": False}), 200
+            return jsonify({"logueado": False, "token": False}), 200
 
 class RegisterUserControllers(MethodView):
     def post(self):
-        #time.sleep(3)
             content = request.get_json()
             name = fixStringClient(content.get("name"))
             lastname = fixStringClient(content.get("lastname"))
@@ -33,12 +36,17 @@ class RegisterUserControllers(MethodView):
             position = fixStringClient(content.get("position"))
             password = fixStringClient(content.get("password"))
             hash_password = cryptStringBcrypt(password)
+            _randomID = getBigRandomString()
+            _randomStr = createStringRandom(13)
+            private_key = str(_randomID) + str(_randomStr)
 
-            #decrypted = decryptStringBcrypt(password, hash_password)
+            data = dataTableMysql("INSERT INTO usuarios(nombres, apellidos, correo, cargo, clave, id_provisional, llave_privada) VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(name, lastname, email, position, hash_password, _randomID, private_key), "rowcount")
 
-            data = dataTableMysql("INSERT INTO usuarios(nombres, apellidos, correo, cargo, clave) VALUES('{}', '{}', '{}', '{}', '{}')".format(name, lastname, email, position, hash_password), "rowcount")
-            
-            return jsonify({"registered": data}), 200
+            if data:
+                time.sleep(1)
+                return jsonify({"registered": data}), 200
+            else:
+                return jsonify({"registered": data}), 200
 
 class SearchProductsControllers(MethodView):
     def post(self):
@@ -67,8 +75,9 @@ class AddProductControllers(MethodView):
 class SearchUsersChatControllers(MethodView):
     def post(self):
         if (request.headers.get('Authorization')):
-            token = request.headers.get('Authorization').split(" ")
-            
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
             checkToken = checkJwt(token)
             if not checkToken:
                 print("TOKEN NO VALIDO")
@@ -90,11 +99,14 @@ class SearchUsersChatControllers(MethodView):
                     "clave": "Not found data",
                     "found": False,
                     "key_search": key_search,
-                    "auth_token": checkToken
+                    "auth_token": checkToken,
+                    "user_id": "Not found data"
                 })
                 return jsonify(json_res), 200
 
-            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo FROM usuarios WHERE nombres LIKE '%{}%' OR apellidos LIKE '%{}%'".format(key_search, key_search))
+            id_buscador = decode_jwt(token).get("user_id")
+
+            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo, id_provisional FROM usuarios WHERE (nombres LIKE '%{}%' OR apellidos LIKE '%{}%') and id_provisional != '{}'".format(key_search, key_search, id_buscador))
             
             for data in myresult:
                 json_res.append({
@@ -104,7 +116,8 @@ class SearchUsersChatControllers(MethodView):
                     "cargo": data[3],
                     "found": True,
                     "auth_token": checkToken,
-                    "key_search": key_search
+                    "key_search": key_search,
+                    "user_id": data[4]
                 })
             if len(json_res) == 0:
                 json_res.append({
@@ -116,7 +129,8 @@ class SearchUsersChatControllers(MethodView):
                     "clave": "Not found data",
                     "found": False,
                     "key_search": key_search,
-                    "auth_token": checkToken
+                    "auth_token": checkToken,
+                    "user_id": "Not found data"
                 })
             return jsonify(json_res), 200
         else:
@@ -130,7 +144,7 @@ class ValidateJwtControllers(MethodView):
         if (request.headers.get('Authorization')):
             token = request.headers.get('Authorization').split(" ")
             
-            checkToken = checkJwt(token)
+            checkToken = checkJwt(token[1])
             if checkToken:
                 return jsonify({
                 "auth_token": checkToken
@@ -143,3 +157,28 @@ class ValidateJwtControllers(MethodView):
             return jsonify({
                 "auth_token": False
             }), 200
+
+class AssignKeyChatInit(MethodView):
+    def post(self):
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            DataJson = request.get_json(force=True)
+            id_provisional_emisor = DataJson["id_emisor"]
+            id_provisional_receptor = DataJson["id_receptor"]
+            token = tokenR[1]
+            
+            checkToken = checkJwt(token)
+            if not checkToken:
+                return jsonify({
+                "auth_token": False
+            }), 200
+
+            dataJwt = decode_jwt(token)
+            if dataJwt.get("user_id") == id_provisional_emisor:
+                initInfo = initChat(id_provisional_receptor, id_provisional_emisor)
+                return jsonify(initInfo), 200
+            else:
+                return jsonify({"auth_token": False}), 200
+        else:
+            return jsonify({"auth_token": False}), 200
+

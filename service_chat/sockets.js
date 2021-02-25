@@ -6,8 +6,8 @@ const socketioJwt = require("socketio-jwt");
 let jwtSecret = "BASE64";
 
 setInterval(() => {
-  console.clear();
-}, 3000);
+  console.log("");
+}, 30000);
 
 module.exports = function (server) {
   let sockets = io.listen(server, {
@@ -28,7 +28,7 @@ module.exports = function (server) {
         10
       )} ha establecido una nueva conexión`
     );
-    console.log(socket.client.request.decoded_token.email, "connected");
+    console.log(socket.client.request.decoded_token.user_id, "connected");
 
     socket.on("general-message", function (data) {
       console.log(`Mensaje de ${data.emitente.slice(
