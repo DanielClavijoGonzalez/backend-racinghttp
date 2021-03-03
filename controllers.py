@@ -3,7 +3,7 @@ from flask import jsonify, request
 import bcrypt
 import time
 import datetime
-from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, saveImg
 import mysql.connector
 
 class LoginUserControllers(MethodView):
@@ -61,16 +61,42 @@ class SearchProductsControllers(MethodView):
 
 class AddProductControllers(MethodView):
     def post(self):
-        """
-            Example for save product
-        """
-        time.sleep(1)
-        content = request.get_json()
-        nombre = content.get("nombre")
-        referencia = content.get("referencia")
-        precio = content.get("precio")
-        cantidad = content.get("cantidad")
-        return jsonify({"guardado": True}), 200
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+            if not checkToken:
+                print("TOKEN NO VALIDO")
+                print(token)
+                return jsonify({
+                "auth_token": False
+            }), 200
+
+            json_req = request.get_json(force=True)
+            cantidad_producto = fixStringClient(json_req['cantidad_producto'])
+            descripcion_producto = fixStringClient(json_req['descripcion_producto'])
+            img_producto = json_req['img_producto']
+            nombre_producto = fixStringClient(json_req['nombre_producto'])
+            precio_producto = fixStringClient(json_req['precio_producto'])
+
+            resultSaveImg = saveImg(img_producto[23::], 'static/img/products/')
+
+            if resultSaveImg[0]:
+                res_jwt = decode_jwt(token)
+                dataRes = dataTableMysql("INSERT INTO productos(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, creador_producto, imagen_producto) VALUES('{}', '{}', '{}', '{}', '{}', '{}')".format(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, res_jwt.get("user_id"), resultSaveImg[1]), "rowcount")
+
+                return jsonify({"saved": dataRes, "auth_token": True}), 200
+            else:
+                return jsonify({
+                "saved": resultSaveImg[0],
+                "auth_token": True
+            }), 200
+
+        else:
+            return jsonify({
+                "auth_token": False
+            }), 200
 
 class SearchUsersChatControllers(MethodView):
     def post(self):
@@ -106,7 +132,7 @@ class SearchUsersChatControllers(MethodView):
 
             id_buscador = decode_jwt(token).get("user_id")
 
-            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo, id_provisional FROM usuarios WHERE (nombres LIKE '%{}%' OR apellidos LIKE '%{}%') and id_provisional != '{}'".format(key_search, key_search, id_buscador))
+            myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo, id_provisional FROM usuarios WHERE (nombres LIKE '%{}%' OR apellidos LIKE '%{}%') and id_provisional != '{}'".format(key_search, key_search.lower(), id_buscador))
             
             for data in myresult:
                 json_res.append({

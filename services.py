@@ -5,6 +5,8 @@ from Crypto import Random
 from config import KEY_TOKEN_AUTH
 from config import SECRET_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_DB
 from config import MYSQL_PASSWORD
+from io import BytesIO
+from PIL import Image
 import random
 import jwt
 import base64
@@ -173,3 +175,11 @@ def createStringRandom(size = 0):
     except :
         return False
     
+def saveImg(data, route):
+    try:
+        nameImg = str(getBigRandomString())
+        im = Image.open(BytesIO(base64.b64decode(data)))
+        im.save('{}'.format(route+nameImg+'.png'), 'PNG')
+        return [True, nameImg+'.png']
+    except :
+        return [False]
