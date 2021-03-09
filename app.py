@@ -24,3 +24,5 @@ app.add_url_rule(admin["add_products_admin"], view_func=admin["add_product_contr
 app.add_url_rule(admin["search_users_admin"], view_func=admin["search_users_controllers"])
 app.add_url_rule(user["check_jwt"], view_func=user["check_jwt_controllers"])
 app.add_url_rule(admin["asign_init_chat"], view_func=admin["asign_init_chat_controllers"])
+app.add_url_rule(admin["manage_products"], view_func=admin["manage_products_controllers"])
+app.add_url_rule(admin["manage_my_products"], view_func=admin["manage_my_products_controllers"])

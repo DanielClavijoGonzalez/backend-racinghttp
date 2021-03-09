@@ -80,7 +80,7 @@ class AddProductControllers(MethodView):
             nombre_producto = fixStringClient(json_req['nombre_producto'])
             precio_producto = fixStringClient(json_req['precio_producto'])
 
-            resultSaveImg = saveImg(img_producto[23::], 'static/img/products/')
+            resultSaveImg = saveImg(img_producto[23::], '../frontend-racinghttp/src/assets/img/products/')
 
             if resultSaveImg[0]:
                 res_jwt = decode_jwt(token)
@@ -184,7 +184,7 @@ class ValidateJwtControllers(MethodView):
                 "auth_token": False
             }), 200
 
-class AssignKeyChatInit(MethodView):
+class AssignKeyChatInitControllers(MethodView):
     def post(self):
         if (request.headers.get('Authorization')):
             tokenR = request.headers.get('Authorization').split(" ")
@@ -208,3 +208,91 @@ class AssignKeyChatInit(MethodView):
         else:
             return jsonify({"auth_token": False}), 200
 
+class ManageProductsControllers(MethodView):
+    def post(self):
+        time.sleep(1)
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+
+            jwt_data = decode_jwt(token)
+            my_products = 0
+            my_products_buy = 0
+            my_register_products = []
+            dataSqlReg = dataTableMysql("SELECT r.fecha_compra, p.precio_producto, u.nombres AS nombre_comprador, u.apellidos AS apellidos_comprador, u.foto_perfil AS foto_perfil_comprador, r.volumen_adquirido, u.id_provisional AS id_comprador FROM registro_compra r, usuarios u, productos p WHERE r.producto_adquirido = p.id AND u.id_provisional = r.comprador AND (r.fecha_compra >= DATE_ADD(CURDATE(), INTERVAL - WEEKDAY(CURDATE()) DAY) AND r.fecha_compra <= DATE_ADD(DATE_ADD(curdate(), INTERVAL - WEEKDAY(CURDATE()) DAY), INTERVAL 6 DAY ) ) AND r.vendedor = '{}'".format(jwt_data.get("user_id")))
+            dataSqlMyProd = dataTableMysql("SELECT count(*) AS productos_actuales FROM productos WHERE creador_producto = '{}'".format(jwt_data.get("user_id")))
+            dataSqlProdBuy = dataTableMysql("SELECT sum(volumen_adquirido) AS productos_adquiridos FROM registro_compra WHERE comprador = '{}'".format(jwt_data.get("user_id")))
+
+            for col in dataSqlReg:
+                my_register_products.append({
+                    "date": col[0],
+                    "price_product": col[1],
+                    "name_buyer": col[2],
+                    "lastname_buyer": col[3],
+                    "profile_image_buyer": col[4],
+                    "units_purchased": col[5],
+                    "id_buyer": col[6]
+                })
+            
+            for col in dataSqlMyProd:
+                my_products = col[0]
+            
+            for col in dataSqlProdBuy:
+                if col[0] == None:
+                    my_products_buy = 0
+                else:
+                    my_products_buy = col[0]
+            
+            print(type(my_products_buy))
+            print(my_products_buy)
+            return jsonify({
+                "auth_token": True,
+                "my_products": str(my_products),
+                "my_purchased_products": str(my_products_buy),
+                "my_register_products": my_register_products
+            }), 200
+        else:
+            return jsonify({"auth_token": False}), 200
+
+class ManageMyProductsControllers(MethodView):
+    def post(self):
+        time.sleep(1)
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+
+            jwt_data = decode_jwt(token)
+            jsonResponse = []
+            
+            dataSql = dataTableMysql("SELECT id, nombre_producto, cantidad_producto, precio_producto, descripcion_producto, imagen_producto FROM productos WHERE creador_producto = '{}' and estado_producto != 0".format(jwt_data.get("user_id")))
+
+            for col in dataSql:
+                jsonResponse.append({
+                    "id": col[0],
+                    "img_product": col[5],
+                    "price_product": col[3],
+                    "vol_product": col[2],
+                    "name_product": col[1],
+                    "description_product": col[4],
+                    "check": False,
+                    "auth_token": checkToken
+                })
+            if len(jsonResponse) == 0:
+                jsonResponse.append({
+                    "auth_token": checkToken
+                })
+            else:
+                return jsonify(jsonResponse), 200
+        else:
+            return jsonify({"auth_token": False}), 200
+    
