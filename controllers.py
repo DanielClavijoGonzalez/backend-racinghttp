@@ -50,14 +50,7 @@ class RegisterUserControllers(MethodView):
 
 class SearchProductsControllers(MethodView):
     def post(self):
-        #simulacion de espera en el back con 1.5 segundos
-        time.sleep(1)
-        content = request.get_json()
-        busqueda = content.get("search")
-        nombre_producto = ["Aceite 125", "Cascos", "Tornillos", "Aceite 150"]
-        cantidad_producto = [40, 38, 41, 20000]
-        precio_producto = [100, 200000, 400, 23000]
-        return jsonify({"nombre_productos": nombre_producto, "cantidad_productos": cantidad_producto,"precio_productos": precio_producto, "search": busqueda}), 200
+        pass
 
 class AddProductControllers(MethodView):
     def post(self):
@@ -145,6 +138,7 @@ class SearchUsersChatControllers(MethodView):
                     "key_search": key_search,
                     "user_id": data[4]
                 })
+
             if len(json_res) == 0:
                 json_res.append({
                     "id": -1,
@@ -167,6 +161,7 @@ class SearchUsersChatControllers(MethodView):
 
 class ValidateJwtControllers(MethodView):
     def post(self):
+        time.sleep(3)
         if (request.headers.get('Authorization')):
             token = request.headers.get('Authorization').split(" ")
             
@@ -225,7 +220,7 @@ class ManageProductsControllers(MethodView):
             my_products_buy = 0
             my_register_products = []
             dataSqlReg = dataTableMysql("SELECT r.fecha_compra, p.precio_producto, u.nombres AS nombre_comprador, u.apellidos AS apellidos_comprador, u.foto_perfil AS foto_perfil_comprador, r.volumen_adquirido, u.id_provisional AS id_comprador FROM registro_compra r, usuarios u, productos p WHERE r.producto_adquirido = p.id AND u.id_provisional = r.comprador AND (r.fecha_compra >= DATE_ADD(CURDATE(), INTERVAL - WEEKDAY(CURDATE()) DAY) AND r.fecha_compra <= DATE_ADD(DATE_ADD(curdate(), INTERVAL - WEEKDAY(CURDATE()) DAY), INTERVAL 6 DAY ) ) AND r.vendedor = '{}'".format(jwt_data.get("user_id")))
-            dataSqlMyProd = dataTableMysql("SELECT count(*) AS productos_actuales FROM productos WHERE creador_producto = '{}'".format(jwt_data.get("user_id")))
+            dataSqlMyProd = dataTableMysql("SELECT count(*) AS productos_actuales FROM productos WHERE creador_producto = '{}' and estado_producto != 0".format(jwt_data.get("user_id")))
             dataSqlProdBuy = dataTableMysql("SELECT sum(volumen_adquirido) AS productos_adquiridos FROM registro_compra WHERE comprador = '{}'".format(jwt_data.get("user_id")))
 
             for col in dataSqlReg:
@@ -287,12 +282,40 @@ class ManageMyProductsControllers(MethodView):
                     "check": False,
                     "auth_token": checkToken
                 })
-            if len(jsonResponse) == 0:
-                jsonResponse.append({
-                    "auth_token": checkToken
-                })
-            else:
-                return jsonify(jsonResponse), 200
+            # if len(jsonResponse) == 0:
+            #     jsonResponse.append({
+            #         "auth_token": checkToken
+            #     })
+            
+            return jsonify(jsonResponse), 200
         else:
             return jsonify({"auth_token": False}), 200
     
+class DeleteFromMyProductsControllers(MethodView):
+    def post(self):
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+            json_req = request.get_json(force=True)
+            reqForFix = json_req.get("product_id")
+            product_id = []
+            for item in reqForFix:
+                product_id.append(fixStringClient(item))
+
+            checkToken = checkJwt(token)
+
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+
+            jwt_data = decode_jwt(token)
+            dataSql = False
+            
+            for data in product_id:
+                print(data)
+                dataSql = dataTableMysql("UPDATE productos SET estado_producto = '0' WHERE creador_producto = '{}' and id = '{}'".format(jwt_data.get("user_id"), data), "rowcount")
+            
+
+            return jsonify({"auth_token": True, "deleted": dataSql}), 200
+        else:
+            return jsonify({"auth_token": False}), 200
+
