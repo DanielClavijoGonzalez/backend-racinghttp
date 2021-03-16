@@ -1,3 +1,4 @@
+import os
 from pkcs7 import *
 from Crypto import Random
 from Crypto.Cipher import AES
@@ -16,6 +17,9 @@ import datetime
 import bcrypt
 
 def fixStringClient(string):
+    if string == True or string == False:
+        return string
+        
     fixed = str(string).replace("'", "").replace("*", "").replace('"', "").replace("+", "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("=", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("/", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace(",", "").replace("!", "").replace("\n", "")
     return fixed
 
@@ -183,3 +187,14 @@ def saveImg(data, route):
         return [True, nameImg+'.png']
     except :
         return [False]
+
+def delFile(data, route):
+    try:
+        os.remove(route+data)
+        return True
+    except :
+        return False
+
+def fixBase64String(b64):
+    fixed = str(b64).replace("'", "").replace("*", "").replace('"', "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace(",", "").replace("!", "").replace("\n", "")
+    return fixed

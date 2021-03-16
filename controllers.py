@@ -3,7 +3,7 @@ from flask import jsonify, request
 import bcrypt
 import time
 import datetime
-from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, saveImg
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, saveImg, fixBase64String, delFile
 import mysql.connector
 
 class LoginUserControllers(MethodView):
@@ -254,6 +254,43 @@ class ManageProductsControllers(MethodView):
         else:
             return jsonify({"auth_token": False}), 200
 
+    def put(self):
+        time.sleep(1)
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+
+            jwt_data = decode_jwt(token)
+            jsonResponse = []
+
+            json_req = request.get_json(force=True)
+            cantidad_producto = fixStringClient(json_req['cantidad_producto'])
+            descripcion_producto = fixStringClient(json_req['descripcion_producto'])
+            img_changed = fixStringClient(json_req['img_changed'])
+            img_producto = json_req['img_producto']
+            img_prev = fixStringClient(img_producto[0])
+            img_new = fixBase64String(img_producto[1][23::])
+            id_producto = fixStringClient(json_req['id_producto'])
+            nombre_producto = fixStringClient(json_req['nombre_producto'])
+            precio_producto = fixStringClient(json_req['precio_producto'])
+
+            if img_changed == True:
+                resultSaveImg = saveImg(img_new, '../frontend-racinghttp/src/assets/img/products/')
+                deletePrevImg = delFile(img_prev, '../frontend-racinghttp/src/assets/img/products/')
+                if resultSaveImg[0] and deletePrevImg:
+                    dataSql = dataTableMysql("UPDATE productos SET nombre_producto = '{}', cantidad_producto = '{}', precio_producto = '{}', descripcion_producto = '{}', imagen_producto = '{}' WHERE id = '{}' and creador_producto = '{}'".format(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, resultSaveImg[1], id_producto, jwt_data.get("user_id")), 'rowcount' )
+                    return jsonify({"auth_token": True,"saved": dataSql}), 200
+                else:
+                    return jsonify({"auth_token": True,"saved": False}), 200
+            else:
+                dataSql = dataTableMysql("UPDATE productos SET nombre_producto = '{}', cantidad_producto = '{}', precio_producto = '{}', descripcion_producto = '{}' WHERE id = '{}' and creador_producto = '{}'".format(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, id_producto, jwt_data.get("user_id")), 'rowcount' )
+                return jsonify({"auth_token": True,"saved": dataSql}), 200
+
 class ManageMyProductsControllers(MethodView):
     def post(self):
         time.sleep(1)
@@ -290,7 +327,7 @@ class ManageMyProductsControllers(MethodView):
             return jsonify(jsonResponse), 200
         else:
             return jsonify({"auth_token": False}), 200
-    
+
 class DeleteFromMyProductsControllers(MethodView):
     def post(self):
         if (request.headers.get('Authorization')):
