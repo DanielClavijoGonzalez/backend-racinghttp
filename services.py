@@ -1,13 +1,4 @@
 import os
-from pkcs7 import *
-from Crypto import Random
-from Crypto.Cipher import AES
-from Crypto import Random 
-from config import KEY_TOKEN_AUTH
-from config import SECRET_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_DB
-from config import MYSQL_PASSWORD
-from io import BytesIO
-from PIL import Image
 import random
 import jwt
 import base64
@@ -15,11 +6,49 @@ import time
 import mysql.connector
 import datetime
 import bcrypt
+import smtplib
+import dropbox
+import matplotlib.pyplot as plt
+from pkcs7 import *
+from Crypto import Random
+from Crypto.Cipher import AES
+from Crypto import Random
+from config import KEY_TOKEN_AUTH
+from config import SECRET_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_DB
+from config import MYSQL_PASSWORD
+from config import TOKEN_DROPBOX
+from io import BytesIO
+from PIL import Image
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from config import PROVEEDOR_MAIL, CORREO_MAIL, PASSWORD_MAIL
+
+def sendEmail(message, receiver, subject, MsgType='html'):
+    """
+        message: mensaje del correo,
+        MsgType: Tipo de mensaje = html-text,
+        receiver: Receptor del mensaje,
+        subject: Asunto del mensaje
+    """
+    try:
+        server = smtplib.SMTP(PROVEEDOR_MAIL)
+        server.starttls()
+        server.ehlo()
+        server.login(CORREO_MAIL, PASSWORD_MAIL)
+        msg = MIMEMultipart()
+        msg.attach(MIMEText(message, MsgType))
+        msg['From'] = CORREO_MAIL
+        msg['To'] = receiver
+        msg['Subject'] = subject
+        server.sendmail(msg['From'] , msg['To'], msg.as_string())
+        return True
+    except :
+        return False
 
 def fixStringClient(string):
     if string == True or string == False:
         return string
-        
+
     fixed = str(string).replace("'", "").replace("*", "").replace('"', "").replace("+", "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("=", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("/", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace(",", "").replace("!", "").replace("\n", "")
     return fixed
 
@@ -43,7 +72,7 @@ def dataTableMysql(query, rtn="datatable"):
         #print("OP 4")
         mydb.commit()
         #print("OP 5")
-        
+
         if rtn == "datatable":
             mycursor.close()
             return data
@@ -149,7 +178,7 @@ def encWithPass(clear_text,  master_key):
         return base64.b64encode( iv + cipher.encrypt( raw ) ).decode("utf-8")
     except :
         return False
-    
+
 def decode_jwt(jwtx):
     try:
         return jwt.decode(jwtx, KEY_TOKEN_AUTH , algorithms=['HS256'])
@@ -168,7 +197,7 @@ def initChat(id_provisional_receptor, id_provisional_emisor):
             return {"access_receptor": access_receptor,"master_key": master_key, "auth_token": True}
     except :
         return False
-    
+
 def createStringRandom(size = 0):
     try:
         if size == 0 or size > 64:
@@ -178,23 +207,94 @@ def createStringRandom(size = 0):
             return ''.join(random.sample(key, size))
     except :
         return False
-    
-def saveImg(data, route):
-    try:
-        nameImg = str(getBigRandomString())
-        im = Image.open(BytesIO(base64.b64decode(data)))
-        im.save('{}'.format(route+nameImg+'.png'), 'PNG')
-        return [True, nameImg+'.png']
-    except :
-        return [False]
 
-def delFile(data, route):
+def saveImgFileSystem(data, route):
+    nameImg = str(getBigRandomString())
+    im = Image.open(BytesIO(base64.b64decode(data)))
+    im.save('{}'.format(route+nameImg+'.png'), 'PNG')
+    return [True, nameImg+'.png']
+    # try:
+        
+    # except :
+    #     return [False]
+
+def delFileFileSystem(data, route):
     try:
         os.remove(route+data)
         return True
     except :
         return False
 
+def B64ToImg(b64):
+    # with open("Prime_Numbers.txt", "wb") as f:
+    #     metadata, res = dbx.files_download(path="/Homework/math/Prime_Numbers.txt")
+    #     f.write(res.content)
+    pass
+
 def fixBase64String(b64):
-    fixed = str(b64).replace("'", "").replace("*", "").replace('"', "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace(",", "").replace("!", "").replace("\n", "")
+    fixed = str(b64).replace("'", "").replace("*", "").replace('"', "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace("!", "").replace("\n", "")
     return fixed
+
+def saveFileCloudDpBx(route, img):
+    try:
+        nameImg = str(getBigRandomString())
+        con = dropbox.Dropbox(TOKEN_DROPBOX)
+        Image64 = Image.open(BytesIO(base64.b64decode(img)))
+        nameImage = '{}'.format(nameImg+'.png')
+        Image64.save(nameImage, 'PNG')
+        result = ''
+        with open(nameImage, 'rb') as f:
+            result = con.files_upload(f.read(), route+nameImage)
+            # result = con.files_upload(f.read(), '/Products/'+nameImage, mode=dropbox.files.WriteMode.overwrite)
+
+        os.remove(nameImage)
+
+        link = con.sharing_create_shared_link(path=route+nameImage, short_url=False)
+
+        ImageFinal = link.url.replace('?dl=0', '?dl=1')
+        
+        return [True, ImageFinal]
+    except Exception as e:
+        print(e)
+        return [False, '']
+    
+def updateFileCloudDpBx(route, img, imgPrev):
+    try:
+        nameImg = imgPrev
+        con = dropbox.Dropbox(TOKEN_DROPBOX)
+        Image64 = Image.open(BytesIO(base64.b64decode(img)))
+        nameImage = '{}'.format(nameImg+'.png')
+        Image64.save(nameImage, 'PNG')
+        result = ''
+        with open(nameImage, 'rb') as f:
+            result = con.files_upload(f.read(), route+nameImage, mode=dropbox.files.WriteMode.overwrite)
+
+        os.remove(nameImage)
+
+        link = con.sharing_create_shared_link(path=route+nameImage, short_url=False)
+
+        ImageFinal = link.url.replace('?dl=0', '?dl=1')
+        
+        return [True, ImageFinal]
+    except Exception as e:
+        print(e)
+        return [False, '']
+    
+def delFileCloudDpBx(route, img):
+    pass
+
+def fixImgB64(img):
+    try:
+        if "data:image/jpeg;base64," in img:
+            imgFix = img.replace("data:image/jpeg;base64,", "")
+            return [True, imgFix]
+        elif "data:image/png;base64," in img:
+            imgFix = img.replace("data:image/png;base64,", "")
+            return [True, imgFix]
+        else:
+            return [False, '']
+    except Exception as e:
+        print("FROM SERVICES.PY / FIXIMGB64:")
+        print(e)
+        return [False, '']
+    

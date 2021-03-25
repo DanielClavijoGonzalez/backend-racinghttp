@@ -5,10 +5,6 @@ const io = require("socket.io", {
 const socketioJwt = require("socketio-jwt");
 let jwtSecret = "BASE64";
 
-setInterval(() => {
-  console.log("");
-}, 30000);
-
 module.exports = function (server) {
   let sockets = io.listen(server, {
     reconnectionDelayMax: 5000,

@@ -1,3 +1,5 @@
+from env import TOKEN_DROPBOX
+
 KEY_TOKEN_AUTH = "BASE64"
 SECRET_KEY = "ADASLDASDSAD#""#$%##$%&$1231WER3RW"
 MYSQL_DB = "racinghttp"
@@ -5,3 +7,13 @@ MYSQL_PASSWORD = ""
 MYSQL_PORT = 3306
 MYSQL_USER = "root"
 MYSQL_HOST = "127.0.0.1"
+
+# mailconfig
+
+PROVEEDOR_MAIL = ''
+CORREO_MAIL = ''
+PASSWORD_MAIL = ''
+
+# DropBox Config
+
+ACCESS_TOKEN = TOKEN_DROPBOX

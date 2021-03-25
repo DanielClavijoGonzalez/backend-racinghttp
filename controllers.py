@@ -1,10 +1,13 @@
+import os
 from flask.views import MethodView
 from flask import jsonify, request
 import bcrypt
 import time
 import datetime
-from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, saveImg, fixBase64String, delFile
+from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, fixBase64String, saveFileCloudDpBx, fixImgB64
+from services import updateFileCloudDpBx
 import mysql.connector
+from validators import LoginValidators, CreateRegisterSchema
 
 class LoginUserControllers(MethodView):
     """
@@ -15,8 +18,6 @@ class LoginUserControllers(MethodView):
         email = fixStringClient(content.get("email"))
         password = fixStringClient(content.get("password"))
         dataDB = dataTableMysql("SELECT nombres, apellidos, correo, cargo, clave, id_provisional, llave_privada FROM usuarios WHERE correo = '{}'".format(email))
-        
-
         if len(dataDB) >= 1:
             for data in dataDB:
                 if bcrypt.checkpw(bytes(str(password), encoding= 'utf-8'), bytes(str(data[4]), encoding= 'utf-8')):
@@ -50,7 +51,47 @@ class RegisterUserControllers(MethodView):
 
 class SearchProductsControllers(MethodView):
     def post(self):
-        pass
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+            if not checkToken:
+                print("TOKEN NO VALIDO")
+                print(token)
+                return jsonify({"auth_token": False}), 200
+
+            json_res = []
+            json_req = request.get_json(force=True)
+            key_search = fixStringClient(json_req["search_key"])
+            if len(key_search) == 0:
+                json_res.append({"found": False,"key_search": key_search,"auth_token": checkToken})
+                return jsonify(json_res), 200
+
+            id_buscador = decode_jwt(token).get("user_id")
+
+            myresult = dataTableMysql("SELECT p.nombre_producto, p.cantidad_producto, p.precio_producto, p.descripcion_producto, p.imagen_producto, p.creador_producto, p.id, concat(u.nombres, ' ', u.apellidos, ' ', u.cargo) as usuario_creador FROM productos p, usuarios u WHERE p.creador_producto=u.id_provisional AND nombre_producto LIKE '%{}%' AND creador_producto != '{}' AND estado_producto != 0".format(key_search.lower(), id_buscador))
+
+            for data in myresult:
+                json_res.append({
+                    "nombre_producto": data[0],
+                    "cantidad_producto": data[1],
+                    "precio_producto": data[2],
+                    "descripcion_producto": data[3],
+                    "imagen_producto": data[4],
+                    "creador_producto": data[5],
+                    "id_producto": data[6],
+                    "usuario_creador": data[7],
+                    "found": True,
+                    "auth_token": checkToken,
+                    "key_search": key_search
+                })
+
+            if len(json_res) == 0:
+                json_res.append({"found": False,"key_search": key_search,"auth_token": checkToken})
+
+            return jsonify(json_res), 200
+        return jsonify({"auth_token": False}), 200
 
 class AddProductControllers(MethodView):
     def post(self):
@@ -73,7 +114,9 @@ class AddProductControllers(MethodView):
             nombre_producto = fixStringClient(json_req['nombre_producto'])
             precio_producto = fixStringClient(json_req['precio_producto'])
 
-            resultSaveImg = saveImg(img_producto[23::], '../frontend-racinghttp/src/assets/img/products/')
+            imgFixed = fixImgB64(img_producto)
+
+            resultSaveImg = saveFileCloudDpBx(route='/products/', img=imgFixed[1])
 
             if resultSaveImg[0]:
                 res_jwt = decode_jwt(token)
@@ -82,7 +125,7 @@ class AddProductControllers(MethodView):
                 return jsonify({"saved": dataRes, "auth_token": True}), 200
             else:
                 return jsonify({
-                "saved": resultSaveImg[0],
+                "saved": False,
                 "auth_token": True
             }), 200
 
@@ -126,7 +169,7 @@ class SearchUsersChatControllers(MethodView):
             id_buscador = decode_jwt(token).get("user_id")
 
             myresult = dataTableMysql("SELECT nombres, apellidos, correo, cargo, id_provisional FROM usuarios WHERE (nombres LIKE '%{}%' OR apellidos LIKE '%{}%') and id_provisional != '{}'".format(key_search, key_search.lower(), id_buscador))
-            
+
             for data in myresult:
                 json_res.append({
                     "nombres": data[0],
@@ -164,7 +207,7 @@ class ValidateJwtControllers(MethodView):
         time.sleep(3)
         if (request.headers.get('Authorization')):
             token = request.headers.get('Authorization').split(" ")
-            
+
             checkToken = checkJwt(token[1])
             if checkToken:
                 return jsonify({
@@ -187,7 +230,7 @@ class AssignKeyChatInitControllers(MethodView):
             id_provisional_emisor = DataJson["id_emisor"]
             id_provisional_receptor = DataJson["id_receptor"]
             token = tokenR[1]
-            
+
             checkToken = checkJwt(token)
             if not checkToken:
                 return jsonify({
@@ -205,7 +248,6 @@ class AssignKeyChatInitControllers(MethodView):
 
 class ManageProductsControllers(MethodView):
     def post(self):
-        time.sleep(1)
         if (request.headers.get('Authorization')):
             tokenR = request.headers.get('Authorization').split(" ")
             token = tokenR[1]
@@ -233,16 +275,16 @@ class ManageProductsControllers(MethodView):
                     "units_purchased": col[5],
                     "id_buyer": col[6]
                 })
-            
+
             for col in dataSqlMyProd:
                 my_products = col[0]
-            
+
             for col in dataSqlProdBuy:
                 if col[0] == None:
                     my_products_buy = 0
                 else:
                     my_products_buy = col[0]
-            
+
             print(type(my_products_buy))
             print(my_products_buy)
             return jsonify({
@@ -255,7 +297,6 @@ class ManageProductsControllers(MethodView):
             return jsonify({"auth_token": False}), 200
 
     def put(self):
-        time.sleep(1)
         if (request.headers.get('Authorization')):
             tokenR = request.headers.get('Authorization').split(" ")
             token = tokenR[1]
@@ -273,16 +314,18 @@ class ManageProductsControllers(MethodView):
             descripcion_producto = fixStringClient(json_req['descripcion_producto'])
             img_changed = fixStringClient(json_req['img_changed'])
             img_producto = json_req['img_producto']
-            img_prev = fixStringClient(img_producto[0])
-            img_new = fixBase64String(img_producto[1][23::])
+            img_prev = fixStringClient(img_producto[0][-27::][:22])
+            img_new_fix = fixBase64String(img_producto[1])
+            img_new = fixImgB64(img_new_fix)
+
             id_producto = fixStringClient(json_req['id_producto'])
             nombre_producto = fixStringClient(json_req['nombre_producto'])
             precio_producto = fixStringClient(json_req['precio_producto'])
 
             if img_changed == True:
-                resultSaveImg = saveImg(img_new, '../frontend-racinghttp/src/assets/img/products/')
-                deletePrevImg = delFile(img_prev, '../frontend-racinghttp/src/assets/img/products/')
-                if resultSaveImg[0] and deletePrevImg:
+                resultSaveImg = updateFileCloudDpBx(route='/Products/', img=img_new, imgPrev=img_prev)
+                # deletePrevImg = delFile(img_prev, '../frontend-racinghttp/src/assets/img/products/')
+                if resultSaveImg[0]:
                     dataSql = dataTableMysql("UPDATE productos SET nombre_producto = '{}', cantidad_producto = '{}', precio_producto = '{}', descripcion_producto = '{}', imagen_producto = '{}' WHERE id = '{}' and creador_producto = '{}'".format(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, resultSaveImg[1], id_producto, jwt_data.get("user_id")), 'rowcount' )
                     return jsonify({"auth_token": True,"saved": dataSql}), 200
                 else:
@@ -293,7 +336,6 @@ class ManageProductsControllers(MethodView):
 
 class ManageMyProductsControllers(MethodView):
     def post(self):
-        time.sleep(1)
         if (request.headers.get('Authorization')):
             tokenR = request.headers.get('Authorization').split(" ")
             token = tokenR[1]
@@ -305,7 +347,7 @@ class ManageMyProductsControllers(MethodView):
 
             jwt_data = decode_jwt(token)
             jsonResponse = []
-            
+
             dataSql = dataTableMysql("SELECT id, nombre_producto, cantidad_producto, precio_producto, descripcion_producto, imagen_producto FROM productos WHERE creador_producto = '{}' and estado_producto != 0".format(jwt_data.get("user_id")))
 
             for col in dataSql:
@@ -323,7 +365,7 @@ class ManageMyProductsControllers(MethodView):
             #     jsonResponse.append({
             #         "auth_token": checkToken
             #     })
-            
+
             return jsonify(jsonResponse), 200
         else:
             return jsonify({"auth_token": False}), 200
@@ -346,13 +388,12 @@ class DeleteFromMyProductsControllers(MethodView):
 
             jwt_data = decode_jwt(token)
             dataSql = False
-            
+
             for data in product_id:
                 print(data)
                 dataSql = dataTableMysql("UPDATE productos SET estado_producto = '0' WHERE creador_producto = '{}' and id = '{}'".format(jwt_data.get("user_id"), data), "rowcount")
-            
+
 
             return jsonify({"auth_token": True, "deleted": dataSql}), 200
         else:
             return jsonify({"auth_token": False}), 200
-

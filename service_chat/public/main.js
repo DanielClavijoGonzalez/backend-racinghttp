@@ -1,7 +1,7 @@
 $(function () {
   //socket iniciado
   let token =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdF9uYW1lIjoiSm9obiIsImxhc3RfbmFtZSI6IkRvZSIsImVtYWlsIjoiam9obkBkb2UuY29tIiwiaWQiOjEyMywiaWF0IjoxNjEzODMwNTUyLCJleHAiOjE2MTM4NDg1NTJ9.RLlpDRPCGXQJZHdlKJj2Q9YsVUmJkVsPiDKc221-6oQ";
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxMjMsImlhdCI6MTYxNjIyMDk4NSwiZXhwIjoxNjE2MjIyNzg1fQ.ASFA8bU3uGP-xUbIq11Iwx5UKSt52facK0si9LmPrS0";
   let socket = io("", {
     query: "token=" + token,
   });
@@ -62,5 +62,12 @@ $(function () {
        <small>${data.dateSend}</small>
       `;
     }
+  });
+  socket.on("connect", () => {
+    console.log("CONNECTED SCKT");
+  });
+
+  socket.on("unauthorized", function (error) {
+    console.error("ERROR TOKEN");
   });
 });
