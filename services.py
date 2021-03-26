@@ -16,7 +16,7 @@ from Crypto import Random
 from config import KEY_TOKEN_AUTH
 from config import SECRET_KEY, MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_DB
 from config import MYSQL_PASSWORD
-from config import TOKEN_DROPBOX
+from config import ACCESS_TOKEN
 from io import BytesIO
 from PIL import Image
 from email.mime.multipart import MIMEMultipart
@@ -238,7 +238,7 @@ def fixBase64String(b64):
 def saveFileCloudDpBx(route, img):
     try:
         nameImg = str(getBigRandomString())
-        con = dropbox.Dropbox(TOKEN_DROPBOX)
+        con = dropbox.Dropbox(ACCESS_TOKEN)
         Image64 = Image.open(BytesIO(base64.b64decode(img)))
         nameImage = '{}'.format(nameImg+'.png')
         Image64.save(nameImage, 'PNG')
@@ -261,7 +261,7 @@ def saveFileCloudDpBx(route, img):
 def updateFileCloudDpBx(route, img, imgPrev):
     try:
         nameImg = imgPrev
-        con = dropbox.Dropbox(TOKEN_DROPBOX)
+        con = dropbox.Dropbox(ACCESS_TOKEN)
         Image64 = Image.open(BytesIO(base64.b64decode(img)))
         nameImage = '{}'.format(nameImg+'.png')
         Image64.save(nameImage, 'PNG')
