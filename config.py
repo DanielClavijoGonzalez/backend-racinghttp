@@ -1,5 +1,7 @@
 from env import *
 
+# app config
+
 KEY_TOKEN_AUTH = KEY_TOKEN_AUTH_env
 SECRET_KEY = SECRET_KEY_env
 MYSQL_DB = MYSQL_DB_env
@@ -11,9 +13,9 @@ MYSQL_HOST = MYSQL_HOST_env
 
 # mailconfig
 
-PROVEEDOR_MAIL = ''
-CORREO_MAIL = ''
-PASSWORD_MAIL = ''
+PROVEEDOR_MAIL = PROVEEDOR_MAIL_env
+CORREO_MAIL = CORREO_MAIL_env
+PASSWORD_MAIL = PASSWORD_MAIL_env
 
 # DropBox Config
 

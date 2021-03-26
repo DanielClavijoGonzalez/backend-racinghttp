@@ -6,3 +6,5 @@ test.js
 TODO.txt
 env.py
 backend-racinghttp.rar
+.vscode/
+db.sql
