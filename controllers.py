@@ -1,3 +1,4 @@
+#region Imports
 import os
 from flask.views import MethodView
 from flask import jsonify, request
@@ -5,9 +6,10 @@ import bcrypt
 import time
 import datetime
 from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, fixBase64String, saveFileCloudDpBx, fixImgB64
-from services import updateFileCloudDpBx
+from services import updateFileCloudDpBx, delFileCloudDpBx
 import mysql.connector
 from validators import LoginValidators, CreateRegisterSchema
+#endregion
 
 class LoginUserControllers(MethodView):
     """
@@ -44,7 +46,6 @@ class RegisterUserControllers(MethodView):
             data = dataTableMysql("INSERT INTO usuarios(nombres, apellidos, correo, cargo, clave, id_provisional, llave_privada) VALUES('{}', '{}', '{}', '{}', '{}', '{}', '{}')".format(name, lastname, email, position, hash_password, _randomID, private_key), "rowcount")
 
             if data:
-                time.sleep(1)
                 return jsonify({"registered": data}), 200
             else:
                 return jsonify({"registered": data}), 200
@@ -116,7 +117,7 @@ class AddProductControllers(MethodView):
 
             imgFixed = fixImgB64(img_producto)
 
-            resultSaveImg = saveFileCloudDpBx(route='/products/', img=imgFixed[1])
+            resultSaveImg = saveFileCloudDpBx(route='/products/', img=imgFixed[1], routeImg='/home/bchrty/test/backend-racinghttp/temp/img/products/')
 
             if resultSaveImg[0]:
                 res_jwt = decode_jwt(token)
@@ -204,7 +205,6 @@ class SearchUsersChatControllers(MethodView):
 
 class ValidateJwtControllers(MethodView):
     def post(self):
-        time.sleep(3)
         if (request.headers.get('Authorization')):
             token = request.headers.get('Authorization').split(" ")
 
@@ -314,18 +314,21 @@ class ManageProductsControllers(MethodView):
             descripcion_producto = fixStringClient(json_req['descripcion_producto'])
             img_changed = fixStringClient(json_req['img_changed'])
             img_producto = json_req['img_producto']
-            img_prev = fixStringClient(img_producto[0][-27::][:22])
+            img_prev = fixStringClient(img_producto[0][-28::][:23])
             img_new_fix = fixBase64String(img_producto[1])
             img_new = fixImgB64(img_new_fix)
-
+        
             id_producto = fixStringClient(json_req['id_producto'])
             nombre_producto = fixStringClient(json_req['nombre_producto'])
             precio_producto = fixStringClient(json_req['precio_producto'])
 
             if img_changed == True:
-                resultSaveImg = updateFileCloudDpBx(route='/Products/', img=img_new, imgPrev=img_prev)
-                # deletePrevImg = delFile(img_prev, '../frontend-racinghttp/src/assets/img/products/')
-                if resultSaveImg[0]:
+
+                # return jsonify({"resultImg": img_prev}), 200
+
+                resultSaveImg = updateFileCloudDpBx(route='/Products/', img=img_new[1], imgPrev=img_prev)
+                resultDeleteFile = delFileCloudDpBx(route='/products/', img=img_prev)
+                if resultSaveImg[0] and resultDeleteFile:
                     dataSql = dataTableMysql("UPDATE productos SET nombre_producto = '{}', cantidad_producto = '{}', precio_producto = '{}', descripcion_producto = '{}', imagen_producto = '{}' WHERE id = '{}' and creador_producto = '{}'".format(nombre_producto, cantidad_producto, precio_producto, descripcion_producto, resultSaveImg[1], id_producto, jwt_data.get("user_id")), 'rowcount' )
                     return jsonify({"auth_token": True,"saved": dataSql}), 200
                 else:
@@ -375,16 +378,19 @@ class DeleteFromMyProductsControllers(MethodView):
         if (request.headers.get('Authorization')):
             tokenR = request.headers.get('Authorization').split(" ")
             token = tokenR[1]
+
+            checkToken = checkJwt(token)
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+
             json_req = request.get_json(force=True)
             reqForFix = json_req.get("product_id")
             product_id = []
             for item in reqForFix:
                 product_id.append(fixStringClient(item))
 
-            checkToken = checkJwt(token)
 
-            if not checkToken:
-                return jsonify({"auth_token": False}), 200
+            
 
             jwt_data = decode_jwt(token)
             dataSql = False
@@ -395,5 +401,41 @@ class DeleteFromMyProductsControllers(MethodView):
 
 
             return jsonify({"auth_token": True, "deleted": dataSql}), 200
+        else:
+            return jsonify({"auth_token": False}), 200
+
+class RequestProductControllers(MethodView):
+    def get(self, id, volume):
+        if (request.headers.get('Authorization')):
+            tokenR = request.headers.get('Authorization').split(" ")
+            token = tokenR[1]
+
+            checkToken = checkJwt(token)
+            if not checkToken:
+                return jsonify({"auth_token": False}), 200
+                
+            jwt_data = decode_jwt(token)
+
+            id_producto = fixStringClient(id)
+            data_vendedor = dataTableMysql("SELECT creador_producto, cantidad_producto FROM productos WHERE id = '{}'".format(id_producto))
+
+            vendedor = ''
+            volumen = int(fixStringClient(volume))
+            volumen_adquirido = 0
+            for item in data_vendedor:
+                vendedor = item[0]
+                volumen_adquirido = int(item[1]) - volumen
+
+            if volumen_adquirido <= -1:
+                return jsonify({"auth_token": True, "bought": False}), 200
+            
+            dataSql = dataTableMysql("INSERT INTO registro_compra(producto_adquirido, comprador, vendedor, volumen_adquirido) VALUES('{}', '{}', '{}', '{}')".format(id_producto, jwt_data.get("user_id"), vendedor, volumen_adquirido), "rowcount")
+
+            change_volume_product = dataTableMysql("UPDATE productos SET cantidad_producto = '{}' WHERE id = '{}'".format(volumen_adquirido, id_producto), "rowcount")
+
+            if dataSql and change_volume_product:
+                return jsonify({"auth_token": True, "bought": True}), 200
+            else:
+                return jsonify({"auth_token": True, "bought": False}), 200
         else:
             return jsonify({"auth_token": False}), 200

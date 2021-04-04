@@ -1,7 +1,7 @@
 from controllers import LoginUserControllers, RegisterUserControllers, SearchProductsControllers, AddProductControllers, SearchUsersChatControllers
 from controllers import ValidateJwtControllers, AssignKeyChatInitControllers
 from controllers import ManageProductsControllers, ManageMyProductsControllers
-from controllers import DeleteFromMyProductsControllers
+from controllers import DeleteFromMyProductsControllers, RequestProductControllers
 
 
 user = {
@@ -34,5 +34,8 @@ admin = {
      "manage_my_products_controllers": ManageMyProductsControllers.as_view("manage_my_products_api"),
 
      "delete_from_my_products": "/api/v01/manage/myproducts/delete",
-     "delete_from_my_products_controllers": DeleteFromMyProductsControllers.as_view("delete_from_my_products_api")
+     "delete_from_my_products_controllers": DeleteFromMyProductsControllers.as_view("delete_from_my_products_api"),
+
+    "request_products": "/api/v01/request/products/<int:id>/<int:volume>/",
+     "request_products_controllers": RequestProductControllers.as_view("request_products_api")
 }

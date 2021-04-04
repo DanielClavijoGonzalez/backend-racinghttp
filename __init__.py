@@ -27,3 +27,4 @@ app.add_url_rule(admin["asign_init_chat"], view_func=admin["asign_init_chat_cont
 app.add_url_rule(admin["manage_products"], view_func=admin["manage_products_controllers"])
 app.add_url_rule(admin["manage_my_products"], view_func=admin["manage_my_products_controllers"])
 app.add_url_rule(admin["delete_from_my_products"], view_func=admin["delete_from_my_products_controllers"])
+app.add_url_rule(admin["request_products"], view_func=admin["request_products_controllers"])

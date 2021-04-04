@@ -329,54 +329,64 @@ def fixBase64String(b64):
     fixed = str(b64).replace("'", "").replace("*", "").replace('"', "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace("!", "").replace("\n", "")
     return fixed
 
-def saveFileCloudDpBx(route, img):
+def saveFileCloudDpBx(route, img, routeImg):
     try:
         nameImg = str(getBigRandomString())
         con = dropbox.Dropbox(ACCESS_TOKEN)
         Image64 = Image.open(BytesIO(base64.b64decode(img)))
-        nameImage = '{}'.format(nameImg+'.png')
-        Image64.save(nameImage, 'PNG')
+        nameImage = '{}'.format(nameImg+'.jpg')
+        Image64.save(routeImg+nameImage, 'jpeg', quality=90)
         result = ''
-        with open(nameImage, 'rb') as f:
+        with open(routeImg+nameImage, 'rb') as f:
             result = con.files_upload(f.read(), route+nameImage)
-            # result = con.files_upload(f.read(), '/Products/'+nameImage, mode=dropbox.files.WriteMode.overwrite)
 
-        os.remove(nameImage)
+        os.remove(routeImg+nameImage)
 
         link = con.sharing_create_shared_link(path=route+nameImage, short_url=False)
 
         ImageFinal = link.url.replace('?dl=0', '?dl=1')
-        
+            
         return [True, ImageFinal]
     except Exception as e:
-        print(e)
-        return [False, '']
+       print(e)
+       return [False, '']
     
 def updateFileCloudDpBx(route, img, imgPrev):
     try:
-        nameImg = imgPrev
+        nameImage = str(getBigRandomString()+".jpg")
         con = dropbox.Dropbox(ACCESS_TOKEN)
         Image64 = Image.open(BytesIO(base64.b64decode(img)))
-        nameImage = '{}'.format(nameImg+'.png')
-        Image64.save(nameImage, 'PNG')
+        Image64.save(nameImage, 'jpeg', quality=90)
         result = ''
         with open(nameImage, 'rb') as f:
-            result = con.files_upload(f.read(), route+nameImage, mode=dropbox.files.WriteMode.overwrite)
+            result = con.files_upload(f.read(), route+nameImage)
 
         os.remove(nameImage)
 
         link = con.sharing_create_shared_link(path=route+nameImage, short_url=False)
-
         ImageFinal = link.url.replace('?dl=0', '?dl=1')
+        
+        print("LINK IMG: "+str(ImageFinal))
         
         return [True, ImageFinal]
     except Exception as e:
+        print("ERROR FROM services.py / updateFileCloudDpBx")
         print(e)
         return [False, '']
     
 def delFileCloudDpBx(route, img):
-    pass
-
+    try:
+        fix = img
+        nameImage = fix.replace(".png", ".jpg")
+        con = dropbox.Dropbox(ACCESS_TOKEN)
+        path = route+nameImage
+        con.files_delete(path)
+        return True
+    except Exception as e:
+        print("ERROR FROM services.py / delFileCloudDpBx")
+        print(e)
+        return False
+    
 def fixImgB64(img):
     try:
         if "data:image/jpeg;base64," in img:
