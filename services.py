@@ -22,14 +22,14 @@ from PIL import Image
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from config import PROVEEDOR_MAIL, CORREO_MAIL, PASSWORD_MAIL
+from utilsTemplate import UTemplates
 
-def sendEmail(message, receiver, subject, userRec, MsgType='html'):
+def sendEmail(receiver, subject, info, MsgType='register', msgs='html'):
     """
-        message: mensaje del correo,
         MsgType: Tipo de mensaje = html-text,
         receiver: Receptor del mensaje,
         subject: Asunto del mensaje,
-        userRec: Usuario que se le envíará el mensaje
+        info: Información necesaria para llenar dinamicamente el mensaje
     """
     try:
         server = smtplib.SMTP(PROVEEDOR_MAIL)
@@ -37,111 +37,32 @@ def sendEmail(message, receiver, subject, userRec, MsgType='html'):
         server.ehlo()
         server.login(CORREO_MAIL, PASSWORD_MAIL)
         msg = MIMEMultipart()
-        message = """<link rel="stylesheet" type="text/css" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css">
-        <tbody>
-            <tr>
-                <td height="50"></td>
-            </tr>
-            <tr>
-                <td style="align-content: center;">
-                    <table width="80%" cellpadding="0" cellspacing="0" style="border:1px solid #f1f2f5;background-color: #ffffff";margin-left:320px>
-                        <tbody>
-                            <tr>
-                                <td colspan="3" height="60" 
-                                    style="border-bottom:1px solid #eeeeee;padding-left:16px;align-content: left;background-color: bgcolor=#ffffff";";>
-                                    <img src="https://i.postimg.cc/vTf4vZBF/logoimgd.png"
-                                        width="100" height="41" style="display:block;width:100px;height:41px"
-                                        class="CToWUd">
-                                    <h2 style="color:#000">Racing-http</h2>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" height="20"></td>
-                            </tr>
-                            <tr>
-                                <td width="20"></td>
-                                <td style="align-content: left;">
-                                    <table cellpadding="0" cellspacing="0" width="100%">
-                                        <tbody>
-                                            <tr>
-                                                <td colspan="3" style="text-align:center">
-                                                    <span
-                                                        style="font-family:Helvetica,Arial,sans-serif;font-weight:bold;font-size:28px;line-height:28px;color:#333333">Welcome
-                                                        Racing-http</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3" height="20"></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3" height="1" 
-                                                    style="font-size:1px;line-height:1px;background-color: #eeeeee;">&nbsp;</td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3" height="20"></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3">
-                                                    <p
-                                                        style="font-family:Helvetica,Arial,sans-serif;color:#494747;line-height:140%;text-align:center">
-                                                        Bienvenido alegre  <a
-                                                            href="#"
-                                                            style="color:#093ada;text-decoration:none" target="_blank">"""+userRec+""" </a>
-                                                            nos alegra que te nos hayas unido a nuestro entorno de Racing-http
-                                                            podras disfrutar de las mejores nuestras funcionalidad y nuestro entorno <a
-                                                            href="#"
-                                                            style="color:#093ada;text-decoration:none" target="_blank">Racing-http.</a>Estamos ansiosos de que puedas empezar</p>
-                                                    <table width="100%" style="width:100%;">
-                                                        <tbody style="align-content:center>"
-                                                            <tr>
-                                                                <td>
-                                                                    <a href="#" style="font-family:Helvetica,Arial,sans-serif;width:50%;text-align:center;padding:12px 0;background-color:#093ada;border:1px solid #093ada;border-radius:8px;display:block;color:#ffffff;font-size:14px;font-weight:normal;text-decoration:none;margin-left:25%">Sign In</a>
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3" height="20"></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="3" style="text-align:center">
-                                                    <span
-                                                        style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#cccccc">El
-                                                        Entorno y grupo Racing-http,</span>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </td>
-                                <td width="20"></td>
-                            </tr>
-                            <tr>
-                                <td colspan="3" height="20"></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-            <tr>
-                <td height="50">
-    
-                </td>
-            </tr>
-        </tbody>"""
-        msg.attach(MIMEText(message, MsgType))
+        UTemplate = UTemplates()
+        UTemplate.info = {
+            'info': info
+        }
+        if MsgType == 'register':
+            message = UTemplate.emailHtmlDefault()
+        else:
+            message = UTemplate.buyProduct()
+        
+        msg.attach(MIMEText(message, msgs))
         msg['From'] = CORREO_MAIL
         msg['To'] = receiver
         msg['Subject'] = subject
         server.sendmail(msg['From'] , msg['To'], msg.as_string())
         return True
-    except :
+    except Exception as e:
+        print("Error send email")
+        print(e)
         return False
 
 def fixStringClient(string):
     if string == True or string == False:
         return string
+
+    if string == None:
+        raise Exception("Error nullable string client")
 
     fixed = str(string).replace("'", "").replace("*", "").replace('"', "").replace("+", "").replace("|", "").replace("%", "").replace("$", "").replace("&", "").replace("=", "").replace("?", "").replace('¡', "").replace("\a", "").replace("<", "").replace(">", "").replace("/", "").replace("[", "").replace("]", "").replace("(", "").replace("´", "").replace(",", "").replace("!", "").replace("\n", "")
     return fixed
@@ -171,7 +92,7 @@ def dataTableMysql(query, rtn="datatable"):
             mycursor.close()
             return data
         elif rtn == "rowcount":
-            #print(mycursor.rowcount)
+            print(mycursor.rowcount)
             if mycursor.rowcount >= 1:
                 mycursor.close()
                 return True
@@ -181,7 +102,8 @@ def dataTableMysql(query, rtn="datatable"):
         else:
             mycursor.close()
             return data
-    except:
+    except Exception as e:
+        print(e)
         return False
 
 def encoded_jwt(user_id):
@@ -335,12 +257,12 @@ def saveFileCloudDpBx(route, img, routeImg):
         con = dropbox.Dropbox(ACCESS_TOKEN)
         Image64 = Image.open(BytesIO(base64.b64decode(img)))
         nameImage = '{}'.format(nameImg+'.jpg')
-        Image64.save(routeImg+nameImage, 'jpeg', quality=90)
+        Image64.save(nameImage, 'jpeg', quality=90)
         result = ''
-        with open(routeImg+nameImage, 'rb') as f:
+        with open(nameImage, 'rb') as f:
             result = con.files_upload(f.read(), route+nameImage)
 
-        os.remove(routeImg+nameImage)
+        os.remove(nameImage)
 
         link = con.sharing_create_shared_link(path=route+nameImage, short_url=False)
 

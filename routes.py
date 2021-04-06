@@ -1,8 +1,4 @@
-from controllers import LoginUserControllers, RegisterUserControllers, SearchProductsControllers, AddProductControllers, SearchUsersChatControllers
-from controllers import ValidateJwtControllers, AssignKeyChatInitControllers
-from controllers import ManageProductsControllers, ManageMyProductsControllers
-from controllers import DeleteFromMyProductsControllers, RequestProductControllers
-
+from controllers import *
 
 user = {
     "login_user": "/api/v01/user/login", "login_user_controllers": LoginUserControllers.as_view("login_api"),
@@ -37,5 +33,8 @@ admin = {
      "delete_from_my_products_controllers": DeleteFromMyProductsControllers.as_view("delete_from_my_products_api"),
 
     "request_products": "/api/v01/request/products/<int:id>/<int:volume>/",
-     "request_products_controllers": RequestProductControllers.as_view("request_products_api")
+     "request_products_controllers": RequestProductControllers.as_view("request_products_api"),
+
+     "request_purchased_products": "/api/v01/purchased/products/<string:token>/<string:rol>/",
+     "request_purchased_products_controllers": GetPurchasedProducts.as_view("request_purchased_products_api"),
 }

@@ -8,6 +8,7 @@ import datetime
 from services import fixStringClient, checkJwt, dataTableMysql, cryptStringBcrypt, decryptStringBcrypt, encoded_jwt, getBigRandomString,getMinRandomString, cryptBase64, decryptBase64, decode_jwt, initChat,createStringRandom, fixBase64String, saveFileCloudDpBx, fixImgB64
 from services import updateFileCloudDpBx, delFileCloudDpBx
 import mysql.connector
+from services import sendEmail
 from validators import LoginValidators, CreateRegisterSchema
 #endregion
 
@@ -417,25 +418,110 @@ class RequestProductControllers(MethodView):
             jwt_data = decode_jwt(token)
 
             id_producto = fixStringClient(id)
-            data_vendedor = dataTableMysql("SELECT creador_producto, cantidad_producto FROM productos WHERE id = '{}'".format(id_producto))
-
+            nombre_producto = ''
+            data_vendedor = dataTableMysql("SELECT creador_producto, cantidad_producto, nombre_producto FROM productos WHERE id = '{}'".format(id_producto))
+            correo_vendedor = ''
             vendedor = ''
             volumen = int(fixStringClient(volume))
             volumen_adquirido = 0
             for item in data_vendedor:
                 vendedor = item[0]
                 volumen_adquirido = int(item[1]) - volumen
+                nombre_producto = item[2]
 
             if volumen_adquirido <= -1:
                 return jsonify({"auth_token": True, "bought": False}), 200
             
-            dataSql = dataTableMysql("INSERT INTO registro_compra(producto_adquirido, comprador, vendedor, volumen_adquirido) VALUES('{}', '{}', '{}', '{}')".format(id_producto, jwt_data.get("user_id"), vendedor, volumen_adquirido), "rowcount")
+            dataSql = dataTableMysql("INSERT INTO registro_compra(producto_adquirido, comprador, vendedor, volumen_adquirido) VALUES('{}', '{}', '{}', '{}')".format(id_producto, jwt_data.get("user_id"), vendedor, volume), "rowcount")
 
             change_volume_product = dataTableMysql("UPDATE productos SET cantidad_producto = '{}' WHERE id = '{}'".format(volumen_adquirido, id_producto), "rowcount")
 
             if dataSql and change_volume_product:
+                
+                dataComprador = dataTableMysql("SELECT nombres, apellidos, cargo FROM usuarios WHERE id_provisional = '{}'".format(jwt_data.get("user_id")))
+
+                infoMsg = {
+                    'usuario': '',
+                    'unidades': '',
+                    'producto': ''
+                }
+                data_vendedor1 = dataTableMysql("SELECT correo FROM usuarios WHERE id_provisional = '{}'".format(vendedor))
+
+                for item in dataComprador:
+                    infoMsg = {
+                    'usuario': "{} {} - {}".format(item[0], item[1], item[2]),
+                    'unidades': volume,
+                    'producto': nombre_producto
+                }
+
+                for item in data_vendedor1:
+                    correo_vendedor =item[0]
+                sendEmailR = sendEmail(receiver=correo_vendedor, subject='Compra nueva!', info=infoMsg, MsgType='buyProduct')
+                if sendEmailR:
+                    print("Email Sent")
                 return jsonify({"auth_token": True, "bought": True}), 200
             else:
                 return jsonify({"auth_token": True, "bought": False}), 200
         else:
             return jsonify({"auth_token": False}), 200
+
+class GetPurchasedProducts(MethodView):
+    def get(self, token, rol):
+        if (token):
+
+            checkToken = checkJwt(token)
+            if not checkToken:
+                return jsonify({
+                "auth_token": False
+            }), 200
+
+            id_consultador = decode_jwt(token).get("user_id")
+            json_res = []
+
+            myresult = ''
+
+            if rol == "comprador":
+                myresult = dataTableMysql("SELECT r.id, CONCAT(day(r.fecha_compra), '-', month(r.fecha_compra), '-', year(r.fecha_compra)), r.volumen_adquirido, CONCAT(u.nombres, ' ', u.apellidos, ' - ', u.cargo) AS vendedor, p.nombre_producto, p.precio_producto, p.descripcion_producto, p.imagen_producto FROM registro_compra r, usuarios u, productos p WHERE r.vendedor=u.id_provisional AND p.id=r.producto_adquirido AND comprador = '{}'".format(id_consultador))
+            else:
+                myresult = dataTableMysql("SELECT r.id, CONCAT(day(r.fecha_compra), '-', month(r.fecha_compra), '-', year(r.fecha_compra)), r.volumen_adquirido, CONCAT(u.nombres, ' ', u.apellidos, ' - ', u.cargo) AS vendedor, p.nombre_producto, p.precio_producto, p.descripcion_producto, p.imagen_producto FROM registro_compra r, usuarios u, productos p WHERE r.vendedor=u.id_provisional AND p.id=r.producto_adquirido AND r.vendedor = '{}'".format(id_consultador))
+
+            for data in myresult:
+                json_res.append({
+                    "id_registro": data[0],
+                    "fecha_compra": data[1],
+                    "volumen_adquirido": str(data[2]),
+                    "vendedor_producto": data[3],
+                    "nombre_producto": data[4],
+                    "precio_producto": str(int(data[5])),
+                    "descripcion_producto": data[6],
+                    "imagen_producto": data[7],
+                    "auth_token": checkToken
+                })
+
+            # if len(json_res) == 0:
+            #     json_res.append({
+            #         "id_registro": -1,
+            #         "fecha_compra": "Not found data",
+            #         "volumen_adquirido": -1,
+            #         "vendedor_producto": "Not found data",
+            #         "nombre_producto": "Not found data",
+            #         "precio_producto": -1,
+            #         "descripcion_producto": "Not found data",
+            #         "imagen_producto": "Not found data",
+            #         "auth_token": checkToken
+            #     })
+            return jsonify(json_res), 200
+        else:
+            print("TOKEN NO RECIBIDO")
+            return jsonify({
+                "auth_token": False
+            }), 200
+
+# class ProfileInfoControllers(MethodView):
+#     def post(self, token):
+#             checkToken = checkJwt(token)
+#             if not checkToken:
+#                 return jsonify({"auth_token": False}), 200
+
+#             json_req = request.get_json(force=True)
+

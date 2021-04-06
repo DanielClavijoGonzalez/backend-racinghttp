@@ -1,28 +1,31 @@
 {
-  "name": "chat_tutorial_js",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "atob": "^2.1.2",
-    "bcrypt": "^5.0.0",
-    "crypto-js": "^4.0.0",
-    "dateformat": "^4.5.1",
-    "express": "^4.15.3",
-    "jsonwebtoken": "^8.5.1",
-    "morgan": "^1.8.2",
-    "node-bcrypt": "0.0.1",
-    "socket.io": "^2.0.1",
-    "socketio-jwt": "^4.6.2"
-  },
-  "devDependencies": {
-    "nodemon": "^1.11.0"
-  }
+    "name": "chat_server",
+    "version": "1.0.0",
+    "description": "Server for chat",
+    "main": "index.js",
+    "scripts": {
+        "start": "node app.js",
+        "dev": "nodemon app.js"
+    },
+    "engines": {
+        "node": "15.13.0"
+    },
+    "keywords": [],
+    "author": "Daniel Clavijo Gonzalez",
+    "license": "MIT",
+    "dependencies": {
+        "atob": "^2.1.2",
+        "bcrypt": "^5.0.0",
+        "crypto-js": "^4.0.0",
+        "dateformat": "^4.5.1",
+        "express": "^4.15.3",
+        "jsonwebtoken": "^8.5.1",
+        "morgan": "^1.8.2",
+        "node-bcrypt": "0.0.1",
+        "socket.io": "^2.0.1",
+        "socketio-jwt": "^4.6.2"
+    },
+    "devDependencies": {
+        "nodemon": "^1.11.0"
+    }
 }
